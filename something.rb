@@ -3,6 +3,11 @@ require 'curses'
 require 'stringio'
 
 Curses.init_screen
+Curses.start_color
+
+Curses.init_pair Curses::COLOR_BLUE,  Curses::COLOR_BLUE,  Curses::COLOR_BLACK
+Curses.init_pair Curses::COLOR_GREEN, Curses::COLOR_GREEN, Curses::COLOR_BLACK
+Curses.init_pair Curses::COLOR_RED,   Curses::COLOR_RED,   Curses::COLOR_BLACK
 
 root = Curses::Window.new(0, 0, 0, 0)
 
@@ -11,7 +16,10 @@ input  = root.subwin(1, 0, Curses.lines - 1, 0)
 
 output.scrollok true
 
-input << '>> '
+input.attron Curses.color_pair(Curses::COLOR_BLUE) | Curses::A_BOLD do
+  input << '>> '
+end
+
 input.refresh
 
 def context
@@ -19,20 +27,31 @@ def context
 end
 
 while line = input.getstr
-  output << ">> #{line}" << "\n"
+  output.attron Curses.color_pair(Curses::COLOR_BLUE) | Curses::A_BOLD do
+    output << ">> "
+  end
+
+  output << line << "\n"
 
   begin
     out, err = $stdout, $stderr
-    io       = $stdout = $stderr = StringIO.new
+    fakeio = $stdout = $stderr = StringIO.new
 
     ret = context.eval(line)
 
-    output << io.string
-    output << '=> ' << ret.inspect << "\n"
+    output << fakeio.string
+
+    output.attron Curses.color_pair(Curses::COLOR_GREEN) | Curses::A_BOLD do
+      output << '=> '
+    end
+
+    output << ret.inspect << "\n"
 
     $stdout, $stderr = out, err
   rescue => e
-    output << "#{e.class}: #{e.message}" << "\n"
+    output.attron Curses.color_pair(Curses::COLOR_RED) | Curses::A_NORMAL do
+      output << "#{e.class}: #{e.message}" << "\n"
+    end
   end
 
   output.refresh
